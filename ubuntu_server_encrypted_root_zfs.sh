@@ -44,8 +44,8 @@ user="testuser" #Username for new install.
 PASSWORD="testuser" #Password for user in new install.
 hostname="ubuntu" #Name to identify the new install on the network. An underscore is DNS non-compliant.
 zfspassword="testtest" #Password for root pool and data pool. Minimum 8 characters.
-locale="en_GB.UTF-8" #New install language setting.
-timezone="Europe/London" #New install timezone setting.
+locale="en_US.UTF-8" #New install language setting.
+timezone="Asia/Bangkok" #New install timezone setting.
 
 EFI_boot_size="512" #EFI boot loader partition size in mebibytes (MiB).
 swap_size="500" #Swap partition size in mebibytes (MiB).
@@ -130,11 +130,11 @@ ipv6_apt_live_iso_fix(){
 
 debootstrap_part1_Func(){
 	##use closest mirrors
-	cp /etc/apt/sources.list /etc/apt/sources.list.bak
+	# cp /etc/apt/sources.list /etc/apt/sources.list.bak
 	#sed -i 's,deb http://security,#deb http://security,' /etc/apt/sources.list ##Uncomment to resolve security pocket time out. Security packages are copied to the other pockets frequently, so should still be available for update. See https://wiki.ubuntu.com/SecurityTeam/FAQ
-	sed -i -e 's/http:\/\/archive/mirror:\/\/mirrors/' -e 's/\/ubuntu\//\/mirrors.txt/' /etc/apt/sources.list
-	sed -i '/mirrors/ s,main restricted,main restricted universe multiverse,' /etc/apt/sources.list
-	cat /etc/apt/sources.list
+	# sed -i -e 's/http:\/\/archive/mirror:\/\/mirrors/' -e 's/\/ubuntu\//\/mirrors.txt/' /etc/apt/sources.list
+	# sed -i '/mirrors/ s,main restricted,main restricted universe multiverse,' /etc/apt/sources.list
+	# cat /etc/apt/sources.list
 	
 	trap 'echo "The script has experienced an error during the first apt update. That may have been caused by a queried server not responding in time. Try running the script again.' ERR
 	apt update
