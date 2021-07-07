@@ -47,7 +47,9 @@ zfspassword="testtest" #Password for root pool and data pool. Minimum 8 characte
 locale="en_US.UTF-8" #New install language setting.
 timezone="Asia/Bangkok" #New install timezone setting.
 
+boot_timeout="10" # how long should rEFInd wait until selecting default value
 EFI_boot_size="512" #EFI boot loader partition size in mebibytes (MiB).
+create_swap="no" #create and use Swap partition or not
 swap_size="500" #Swap partition size in mebibytes (MiB).
 RPOOL="rpool" #Root pool name.
 openssh="yes" #"yes" to install open-ssh server in new install.
@@ -178,16 +180,23 @@ debootstrap_part1_Func(){
 		##2.3 create bootloader partition
 		sgdisk -n1:1M:+"$EFI_boot_size"M -t1:EF00 /dev/disk/by-id/"$DISKID"
 		
-		##2.4 create swap partition 
-		##bug with swap on zfs zvol so use swap on partition:
-		##https://github.com/zfsonlinux/zfs/issues/7734
-		##hibernate needs swap at least same size as RAM
-		##hibernate only works with unencrypted installs
-		sgdisk -n2:0:+"$swap_size"M -t2:8200 /dev/disk/by-id/"$DISKID"
-		
-		##2.6 Create root pool partition
+		##2.4-2.6 Create root pool and swap partitions
 		##Unencrypted or ZFS native encryption:
-		sgdisk     -n3:0:0      -t3:BF00 /dev/disk/by-id/"$DISKID" 
+		if [ "$create_swap" = "yes" ]; then
+			sgdisk -n2:0:-"$swap_size"M -t2:BF00 /dev/disk/by-id/"$DISKID" 
+			
+			##2.4 create swap partition 
+			##bug with swap on zfs zvol so use swap on partition:
+			##https://github.com/zfsonlinux/zfs/issues/7734
+			##hibernate needs swap at least same size as RAM
+			##hibernate only works with unencrypted installs
+			sgdisk -n3:0:0 -t3:8200 /dev/disk/by-id/"$DISKID"
+		else
+			sgdisk -n2:0:0 -t2:BF00 /dev/disk/by-id/"$DISKID"
+		fi
+		
+
+		
 		sleep 2
 	}
 	partitionsFunc
@@ -210,7 +219,7 @@ debootstrap_createzfspools_Func(){
 			-O xattr=sa \
 			-O encryption=aes-256-gcm -O keylocation=prompt -O keyformat=passphrase \
 			-O mountpoint=/ -R "$mountpoint" \
-			"$RPOOL" /dev/disk/by-id/"$DISKID"-part3
+			"$RPOOL" /dev/disk/by-id/"$DISKID"-part2
 	}
 
 	echo -e "$zfspassword" | zpool_encrypted_Func
@@ -584,7 +593,7 @@ systemsetupFunc_part4(){
 				##zfsbootmenu command-line parameters:
 				##https://github.com/zbm-dev/zfsbootmenu/blob/master/pod/zfsbootmenu.7.pod
 				cat <<-EOF > /boot/efi/EFI/debian/refind_linux.conf
-					"Boot default"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.timeout=15 ro quiet loglevel=0"
+					"Boot default"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.timeout=$boot_timeout ro quiet loglevel=0"
 					"Boot to menu"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.show ro quiet loglevel=0"
 				EOF
 				
@@ -610,11 +619,13 @@ systemsetupFunc_part5(){
 
 
 		##4.12 configure swap
-		apt install --yes cryptsetup
-		##"plain" required in crypttab to avoid message at boot: "From cryptsetup: couldn't determine device type, assuming default (plain)."
-		echo swap /dev/disk/by-id/"$DISKID"-part2 /dev/urandom \
-			plain,swap,cipher=aes-xts-plain64:sha256,size=512 >> /etc/crypttab
-		echo /dev/mapper/swap none swap defaults 0 0 >> /etc/fstab
+		if ["$create_swap" = "yes"]; then
+			apt install --yes cryptsetup
+			##"plain" required in crypttab to avoid message at boot: "From cryptsetup: couldn't determine device type, assuming default (plain)."
+			echo swap /dev/disk/by-id/"$DISKID"-part3 /dev/urandom \
+				plain,swap,cipher=aes-xts-plain64:sha256,size=512 >> /etc/crypttab
+			echo /dev/mapper/swap none swap defaults 0 0 >> /etc/fstab
+		fi
 
 		##4.13 mount a tmpfs to /tmp
 		cp /usr/share/systemd/tmp.mount /etc/systemd/system/
