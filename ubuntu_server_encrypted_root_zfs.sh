@@ -48,13 +48,17 @@ zfspassword="testtest" #Password for root pool and data pool. Minimum 8 characte
 locale="en_GB.UTF-8" #New install language setting.
 timezone="Europe/London" #New install timezone setting.
 
-refind_timeout="5" #how long should rEFInd wait until selecting default choice
-zbm_timeout="10" # how long should ZFS Boot Manager wait until selecting default choice
+refind_timeout="3" #how long should rEFInd wait until selecting default choice
+zbm_timeout="5" # how long should ZFS Boot Manager wait until selecting default choice
+quiet_boot="no" # should boot process be quiet or not?
 EFI_boot_size="512" #EFI boot loader partition size in mebibytes (MiB).
+
 create_swap="no" #create and use Swap partition or not
 swap_size="500" #Swap partition size in mebibytes (MiB).
 RPOOL="rpool" #Root pool name.
+
 openssh="yes" #"yes" to install open-ssh server in new install.
+
 datapool="datapool" #Non-root drive data pool name.
 datapoolmount="/mnt/$datapool" #Non-root drive data pool mount point in new install.
 zfs_compression="zstd" #lz4 is the zfs default; zstd may offer better compression at a cost of higher cpu usage. 
@@ -547,8 +551,12 @@ systemsetupFunc_part4(){
 				chmod 600 /etc/zfs/$RPOOL.key
 				zfs change-key -o keylocation=file:///etc/zfs/$RPOOL.key -o keyformat=passphrase $RPOOL
 			fi
-							
-			zfs set org.zfsbootmenu:commandline="spl_hostid=\$( hostid ) ro quiet" "$RPOOL"/ROOT
+			
+			if [ "$quiet_boot" = "yes" ]; then
+				zfs set org.zfsbootmenu:commandline="spl_hostid=\$( hostid ) ro quiet" "$RPOOL"/ROOT
+			else
+				zfs set org.zfsbootmenu:commandline="spl_hostid=\$( hostid ) ro" "$RPOOL"/ROOT
+			fi
 			
 			##install zfsbootmenu
 			compile_zbm_git(){
