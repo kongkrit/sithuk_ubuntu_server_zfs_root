@@ -207,6 +207,11 @@ debootstrap_part1_Func(){
 debootstrap_createzfspools_Func(){
 
 	zpool_encrypted_Func(){
+		if [ "$encrypt_zfs" = "yes" ]; then
+		  zpool_encrypt_options="-O encryption=aes-256-gcm -O keylocation=prompt -O keyformat=passphrase"
+		else
+		  zpool_encrypt_options=""
+		fi
 		##2.8b create root pool encrypted
 		echo Password must be min 8 characters.
 		zpool create -f \
@@ -219,33 +224,12 @@ debootstrap_createzfspools_Func(){
 			-O normalization=formD \
 			-O relatime=on \
 			-O xattr=sa \
-			-O encryption=aes-256-gcm -O keylocation=prompt -O keyformat=passphrase \
-			-O mountpoint=/ -R "$mountpoint" \
-			"$RPOOL" /dev/disk/by-id/"$DISKID"-part2
-	}
-	
-	zpool_unencrypted_Func(){
-		##2.8b create root pool encrypted
-		echo Password must be min 8 characters.
-		zpool create -f \
-			-o ashift=12 \
-			-o autotrim=on \
-			-O acltype=posixacl \
-			-O canmount=off \
-			-O compression="$zfs_compression" \
-			-O dnodesize=auto \
-			-O normalization=formD \
-			-O relatime=on \
-			-O xattr=sa \
+			"$zpool_encrypt_options" \
 			-O mountpoint=/ -R "$mountpoint" \
 			"$RPOOL" /dev/disk/by-id/"$DISKID"-part2
 	}
 
-	if [ "$encrypt_zfs" = "yes" ]; then
-		echo -e "$zfspassword" | zpool_encrypted_Func
-	else
-		zpool_unencrypted_Func
-	fi
+	echo -e "$zfspassword" | zpool_encrypted_Func
 	
 	##3. System installation
 	mountpointsFunc(){
