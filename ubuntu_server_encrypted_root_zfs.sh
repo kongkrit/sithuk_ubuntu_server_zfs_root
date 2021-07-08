@@ -43,7 +43,8 @@ ubuntuver="hirsute" #Ubuntu release to install. Only tested with hirsute (21.04)
 user="testuser" #Username for new install.
 PASSWORD="testuser" #Password for user in new install.
 hostname="ubuntu" #Name to identify the new install on the network. An underscore is DNS non-compliant.
-zfspassword="testtest" #Password for root pool and data pool. Minimum 8 characters.
+encrypt_zfs="no" # do we want to encrypt zfs pool or not?
+zfspassword="testtest" #Password for root pool and data pool. Minimum 8 characters. Only used if encrypt_zfs="yes"
 locale="en_GB.UTF-8" #New install language setting.
 timezone="Europe/London" #New install timezone setting.
 
@@ -222,8 +223,29 @@ debootstrap_createzfspools_Func(){
 			-O mountpoint=/ -R "$mountpoint" \
 			"$RPOOL" /dev/disk/by-id/"$DISKID"-part2
 	}
+	
+	zpool_unencrypted_Func(){
+		##2.8b create root pool encrypted
+		echo Password must be min 8 characters.
+		zpool create -f \
+			-o ashift=12 \
+			-o autotrim=on \
+			-O acltype=posixacl \
+			-O canmount=off \
+			-O compression="$zfs_compression" \
+			-O dnodesize=auto \
+			-O normalization=formD \
+			-O relatime=on \
+			-O xattr=sa \
+			-O mountpoint=/ -R "$mountpoint" \
+			"$RPOOL" /dev/disk/by-id/"$DISKID"-part2
+	}
 
-	echo -e "$zfspassword" | zpool_encrypted_Func
+	if [ "$encrypt_zfs" = "yes" ]; then
+		echo -e "$zfspassword" | zpool_encrypted_Func
+	else
+		zpool_unencrypted_Func
+	fi
 	
 	##3. System installation
 	mountpointsFunc(){
@@ -535,10 +557,12 @@ systemsetupFunc_part4(){
 	chroot "$mountpoint" /bin/bash -x <<-EOCHROOT
 		zfsbootmenuinstall(){
 
-			##convert rpool to use keyfile
-			echo $zfspassword > /etc/zfs/$RPOOL.key ##This file will live inside your initramfs stored ON the ZFS boot environment.
-			chmod 600 /etc/zfs/$RPOOL.key
-			zfs change-key -o keylocation=file:///etc/zfs/$RPOOL.key -o keyformat=passphrase $RPOOL
+			if [ "$encrypt_zfs" = "yes" ]; then
+				##convert rpool to use keyfile
+				echo $zfspassword > /etc/zfs/$RPOOL.key ##This file will live inside your initramfs stored ON the ZFS boot environment.
+				chmod 600 /etc/zfs/$RPOOL.key
+				zfs change-key -o keylocation=file:///etc/zfs/$RPOOL.key -o keyformat=passphrase $RPOOL
+			fi
 							
 			zfs set org.zfsbootmenu:commandline="spl_hostid=\$( hostid ) ro quiet" "$RPOOL"/ROOT
 			
