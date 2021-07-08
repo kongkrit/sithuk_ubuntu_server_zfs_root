@@ -224,7 +224,7 @@ debootstrap_createzfspools_Func(){
 			-O normalization=formD \
 			-O relatime=on \
 			-O xattr=sa \
-			"$zpool_encrypt_options" \
+			$zpool_encrypt_options \
 			-O mountpoint=/ -R "$mountpoint" \
 			"$RPOOL" /dev/disk/by-id/"$DISKID"-part2
 	}
