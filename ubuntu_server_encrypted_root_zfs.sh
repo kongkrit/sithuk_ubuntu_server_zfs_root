@@ -44,8 +44,8 @@ user="testuser" #Username for new install.
 PASSWORD="testuser" #Password for user in new install.
 hostname="ubuntu" #Name to identify the new install on the network. An underscore is DNS non-compliant.
 zfspassword="testtest" #Password for root pool and data pool. Minimum 8 characters.
-locale="en_US.UTF-8" #New install language setting.
-timezone="Asia/Bangkok" #New install timezone setting.
+locale="en_GB.UTF-8" #New install language setting.
+timezone="Europe/London" #New install timezone setting.
 
 boot_timeout="10" # how long should rEFInd wait until selecting default value
 EFI_boot_size="512" #EFI boot loader partition size in mebibytes (MiB).
