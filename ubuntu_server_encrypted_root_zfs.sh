@@ -51,7 +51,7 @@ timezone="Europe/London" #New install timezone setting.
 refind_timeout="3" #how long should rEFInd wait until selecting default choice
 zbm_timeout="5" # how long should ZFS Boot Manager wait until selecting default choice
 quiet_boot="no" # should boot process be quiet or not?
-EFI_boot_size="512" #EFI boot loader partition size in mebibytes (MiB).
+EFI_boot_size="2" #EFI boot loader partition size in gibibytes (GiB).
 
 create_swap="no" #create and use Swap partition or not
 swap_size="500" #Swap partition size in mebibytes (MiB).
@@ -101,6 +101,50 @@ getdiskID(){
 		exit 1
 	fi
 	echo "Disk ID set to ""$DISKID"""
+}
+
+getDiskIDs(){
+
+	checkDiskById() {
+		read -r NAME
+	        errchk="$(find /dev/disk/by-id -maxdepth 1 -mindepth 1 -name "$NAME")"
+        	if [ -z "$errchk" ]; then
+                	echo "Disk ID not found. Exiting."
+                	exit 1
+        	fi
+		echo $NAME
+	}
+
+	##Get root Disk UUID
+	ls -la /dev/disk/by-id
+	echo "Enter Disk ID for EFI:"
+	DISKID_EFI=$(checkDiskById)
+	ls -la /dev/disk/by-id
+	echo "Enter Disk ID for ZFS (1 of 2):"
+	DISKID_ZFS1=$(checkDiskById)
+	ls -la /dev/disk/by-id
+	echo "Enter Disk ID for ZFS (2 of 2):"
+	DISKID_ZFS2=$(checkDiskById)
+
+	cat <<-EOF
+ 	DISKID_EFI=$DISKID_EFI
+ 	DISKID_ZFS1=$DISKID_ZFS1
+ 	DISKID_ZFS2=$DISKID_ZFS2
+ 	Please confirm with enter or break with ctrl-c"
+	EOF
+
+	if [ "$DISKID_EFI" = "$DISKID_ZFS1" ]; then
+		echo "ERROR: disk ids are not all unique!";
+		exit 1
+	fi
+	if [ "$DISKID_EFI" = "$DISKID_ZFS2" ]; then
+		echo "ERROR: disk ids are not all unique!";
+		exit 1
+	fi
+	if [ "$DISKID_ZFS1" = "$DISKID_ZFS2" ]; then
+		echo "ERROR: disk ids are not all unique!"
+		exit 1
+	fi
 }
 
 identify_ubuntu_dataset_uuid(){
@@ -170,8 +214,10 @@ debootstrap_part1_Func(){
 	##2.2 Wipe disk 
 	
 	##Clear partition table
-	sgdisk --zap-all /dev/disk/by-id/"$DISKID"
+	sgdisk --zap-all /dev/disk/by-id/"$DISKID_EFI"
 	sleep 2
+	sgdisk --zap-all /dev/disk/by-id/"$DISKID_ZFS1"
+	# sgdisk --zap-all /dev/disk/by-id/"$DISKID_ZFS2"
 
 	##Partition disk
 	partitionsFunc(){
@@ -185,24 +231,22 @@ debootstrap_part1_Func(){
 		##8300 Linux file system
 		
 		##2.3 create bootloader partition
-		sgdisk -n1:1M:+"$EFI_boot_size"M -t1:EF00 /dev/disk/by-id/"$DISKID"
+		sgdisk -n1:1M:+"$EFI_boot_size"G -t1:EF00 /dev/disk/by-id/"$DISKID_EFI"
 		
 		##2.4-2.6 Create root pool and swap partitions
 		##Unencrypted or ZFS native encryption:
-		if [ "$create_swap" = "yes" ]; then
-			sgdisk -n2:0:-"$swap_size"M -t2:BF00 /dev/disk/by-id/"$DISKID" 
-			
-			##2.4 create swap partition 
-			##bug with swap on zfs zvol so use swap on partition:
-			##https://github.com/zfsonlinux/zfs/issues/7734
-			##hibernate needs swap at least same size as RAM
-			##hibernate only works with unencrypted installs
-			sgdisk -n3:0:0 -t3:8200 /dev/disk/by-id/"$DISKID"
-		else
-			sgdisk -n2:0:0 -t2:BF00 /dev/disk/by-id/"$DISKID"
-		fi
-		
-
+		#if [ "$create_swap" = "yes" ]; then
+		#	sgdisk -n2:0:-"$swap_size"M -t2:BF00 /dev/disk/by-id/"$DISKID" 
+		#	
+		#	##2.4 create swap partition 
+		#	##bug with swap on zfs zvol so use swap on partition:
+		#	##https://github.com/zfsonlinux/zfs/issues/7734
+		#	##hibernate needs swap at least same size as RAM
+		#	##hibernate only works with unencrypted installs
+		#	sgdisk -n3:0:0 -t3:8200 /dev/disk/by-id/"$DISKID"
+		#else
+		#	sgdisk -n2:0:0 -t2:BF00 /dev/disk/by-id/"$DISKID"
+		#fi
 		
 		sleep 2
 	}
@@ -231,7 +275,7 @@ debootstrap_createzfspools_Func(){
 			-O xattr=sa \
 			$zpool_encrypt_options \
 			-O mountpoint=/ -R "$mountpoint" \
-			"$RPOOL" /dev/disk/by-id/"$DISKID"-part2
+			"$RPOOL" /dev/disk/by-id/"$DISKID_ZFS1"
 	}
 
 	echo -e "$zfspassword" | zpool_encrypted_Func
@@ -494,7 +538,7 @@ systemsetupFunc_part3(){
 	
 	identify_ubuntu_dataset_uuid
 
-	mkdosfs -F 32 -s 1 -n EFI /dev/disk/by-id/"$DISKID"-part1 
+	mkdosfs -F 32 -s 1 -n EFI /dev/disk/by-id/"$DISKID_EFI"-part1 
 	sleep 2
 	blkid_part1=""
 	blkid_part1="$(blkid -s UUID -o value /dev/disk/by-id/"${DISKID}"-part1)"
@@ -645,13 +689,13 @@ systemsetupFunc_part5(){
 
 
 		##4.12 configure swap
-		if ["$create_swap" = "yes"]; then
-			apt install --yes cryptsetup
-			##"plain" required in crypttab to avoid message at boot: "From cryptsetup: couldn't determine device type, assuming default (plain)."
-			echo swap /dev/disk/by-id/"$DISKID"-part3 /dev/urandom \
-				plain,swap,cipher=aes-xts-plain64:sha256,size=512 >> /etc/crypttab
-			echo /dev/mapper/swap none swap defaults 0 0 >> /etc/fstab
-		fi
+		#if ["$create_swap" = "yes"]; then
+		#	apt install --yes cryptsetup
+		#	##"plain" required in crypttab to avoid message at boot: "From cryptsetup: couldn't determine device type, assuming default (plain)."
+		#	echo swap /dev/disk/by-id/"$DISKID"-part3 /dev/urandom \
+		#		plain,swap,cipher=aes-xts-plain64:sha256,size=512 >> /etc/crypttab
+		#	echo /dev/mapper/swap none swap defaults 0 0 >> /etc/fstab
+		#fi
 
 		##4.13 mount a tmpfs to /tmp
 		cp /usr/share/systemd/tmp.mount /etc/systemd/system/
