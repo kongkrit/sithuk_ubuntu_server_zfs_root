@@ -734,7 +734,7 @@ systemsetupFunc_part7(){
 		if [ "$openssh" = "yes" ];
 		then
 			apt install -y openssh-server
-			if ["$allow_root_ssh_with_password" = "yes"]; then
+			if [ "$allow_root_ssh_with_password" = "yes" ]; then
 				sed -i.bak -E 's/(^#PermitRootLogin )(.*)$/\1\2\nPermitRootLogin yes/g' /etc/ssh/sshd_config
 			fi
 		fi
