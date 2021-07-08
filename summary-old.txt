@@ -1,0 +1,288 @@
+##Variables:
+ubuntuver="hirsute" #Ubuntu release to install. Only tested with hirsute (21.04).
+user="testuser" #Username for new install.
+PASSWORD="testuser" #Password for user in new install.
+hostname="ubuntu" #Name to identify the new install on the network. An underscore is DNS non-compliant.
+zfspassword="testtest" #Password for root pool and data pool. Minimum 8 characters.
+locale="en_GB.UTF-8" #New install language setting.
+timezone="Europe/London" #New install timezone setting.
+
+EFI_boot_size="512" #EFI boot loader partition size in mebibytes (MiB).
+swap_size="500" #Swap partition size in mebibytes (MiB).
+RPOOL="rpool" #Root pool name.
+openssh="yes" #"yes" to install open-ssh server in new install.
+datapool="datapool" #Non-root drive data pool name.
+datapoolmount="/mnt/$datapool" #Non-root drive data pool mount point in new install.
+zfs_compression="zstd" #lz4 is the zfs default; zstd may offer better compression at a cost of higher cpu usage. 
+mountpoint="/mnt/ub_server" #Mountpoint in live iso.
+remoteaccess="no" #"yes" to enable remoteaccess during first boot. Recommend leaving as "no" and run script with "remoteaccess" option.
+ethprefix="e" #First letter of ethernet interface. Used to identify ethernet interface to setup networking in new install.
+install_log="ubuntu_setup_zfs_root.log" #Installation log filename.
+log_loc="/var/log" #Installation log location.
+ipv6_apt_fix_live_iso="no" #Try setting to "yes if apt-get is slow in the ubuntu live iso. Doesn't affect ipv6 functionality in the new install.
+
+###########################################################
+run as root
+$DISKID
+
+## ------------------------ initial flow ----------------------------
+
+## debootstrap_part1
+
+apt update
+apt install --yes openssh-server
+service sshd start
+ip addr show scope global | grep inet
+DEBIAN_FRONTEND=noninteractive apt-get -yq install debootstrap software-properties-common gdisk zfs-initramfs
+if service --status-all | grep -Fq 'zfs-zed'; then
+	systemctl stop zfs-zed
+fi
+
+sgdisk --zap-all /dev/disk/by-id/"$DISKID"
+sleep 2
+sgdisk -n1:1M:+"$EFI_boot_size"M -t1:EF00 /dev/disk/by-id/"$DISKID"
+sgdisk -n2:0:+"$swap_size"M -t2:8200 /dev/disk/by-id/"$DISKID"
+sgdisk     -n3:0:0      -t3:BF00 /dev/disk/by-id/"$DISKID" 
+sleep 2
+
+## debootstrap_createzfspools
+
+zpool create -f \
+		-o ashift=12 \
+		-o autotrim=on \
+		-O acltype=posixacl \
+		-O canmount=off \
+		-O compression="$zfs_compression" \
+		-O dnodesize=auto \
+		-O normalization=formD \
+		-O relatime=on \
+		-O xattr=sa \
+#>> 212		-O encryption=aes-256-gcm -O keylocation=prompt -O keyformat=passphrase \
+		-O mountpoint=/ -R "$mountpoint" \
+		"$RPOOL" /dev/disk/by-id/"$DISKID"-part3
+
+sleep 2
+zfs create -o canmount=off -o mountpoint=none "$RPOOL"/ROOT 
+rootzfs_full_name="ubuntu.$(date +%Y.%m.%d)"
+zfs create -o canmount=noauto -o mountpoint=/ "$RPOOL"/ROOT/"$rootzfs_full_name" ##zfsbootmenu debian guide
+
+zfs mount "$RPOOL"/ROOT/"$rootzfs_full_name"
+zpool set bootfs="$RPOOL"/ROOT/"$rootzfs_full_name" "$RPOOL"
+
+#>> 238-258
+zfs create	"$RPOOL"/srv 						##server webserver content
+zfs create -o canmount=off	"$RPOOL"/usr
+zfs create	"$RPOOL"/usr/local					##locally compiled software
+zfs create -o canmount=off "$RPOOL"/var 
+zfs create -o canmount=off "$RPOOL"/var/lib
+zfs create 	"$RPOOL"/var/lib/AccountsService	##If this system will use GNOME
+zfs create	"$RPOOL"/var/games					##game files
+zfs create	"$RPOOL"/var/log 					##log files
+zfs create	"$RPOOL"/var/mail 					##local mails
+zfs create	"$RPOOL"/var/snap					##snaps handle revisions themselves
+zfs create	"$RPOOL"/var/spool					##printing tasks
+zfs create	"$RPOOL"/var/www					##server webserver content
+
+##USERDATA datasets
+zfs create "$RPOOL"/home
+zfs create -o mountpoint=/root "$RPOOL"/home/root
+chmod 700 "$mountpoint"/root
+
+##exclude from snapshots
+zfs create -o com.sun:auto-snapshot=false "$RPOOL"/var/cache
+zfs create -o com.sun:auto-snapshot=false "$RPOOL"/var/tmp
+chmod 1777 "$mountpoint"/var/tmp
+zfs create -o com.sun:auto-snapshot=false "$RPOOL"/var/lib/docker ##Docker manages its own datasets & snapshots
+
+##Mount a tempfs at /run
+mkdir "$mountpoint"/run
+mount -t tmpfs tmpfs "$mountpoint"/run
+
+## debootstrap_installminsys
+# check free space
+debootstrap "$ubuntuver" "$mountpoint"
+
+## systemsetupFunc_part1
+echo "$hostname" > "$mountpoint"/etc/hostname
+echo 127.0.1.1       "$hostname" >> "$mountpoint"/etc/hosts
+
+##get ethernet interface
+ethernetinterface="$(basename "$(find /sys/class/net -maxdepth 1 -mindepth 1 -name "${ethprefix}*")")"
+echo "$ethernetinterface"
+cat > "$mountpoint"/etc/netplan/01-"$ethernetinterface".yaml <<-EOF
+
+mount --rbind /dev  "$mountpoint"/dev
+mount --rbind /proc "$mountpoint"/proc
+mount --rbind /sys  "$mountpoint"/sys 
+
+chroot {
+  cat > /etc/apt/sources.list <<-EOLIST
+  apt update
+	
+  #dpkg-reconfigure locales
+  locale-gen en_US.UTF-8 $locale
+  echo 'LANG="$locale"' > /etc/default/locale
+
+  ##set timezone
+  ln -fs /usr/share/zoneinfo/"$timezone" /etc/localtime
+  dpkg-reconfigure -f noninteractive tzdata
+}
+
+## systemsetupFunc_part2
+chroot {
+  apt update
+  apt install --no-install-recommends -y linux-headers-generic linux-image-generic ##need to use no-install-recommends otherwise installs grub
+
+  apt install --yes --no-install-recommends dkms wget nano
+  apt install -yq software-properties-common
+
+  DEBIAN_FRONTEND=noninteractive apt-get -yq install zfs-dkms
+  apt install --yes zfsutils-linux zfs-zed
+
+  apt install --yes zfs-initramfs
+}
+
+## systemsetupFunc_part3
+rootzfs_full_name=0
+rootzfs_full_name="$(zfs list -o name | awk '/ROOT\/ubuntu/{print $1;exit}'|sed -e 's,^.*/,,')"
+#>> returns ubuntu.YYYY.MM.DD
+
+mkdosfs -F 32 -s 1 -n EFI /dev/disk/by-id/"$DISKID"-part1 
+sleep 2
+# blkid_part1="$(blkid -s UUID -o value /dev/disk/by-id/"${DISKID}"-part1)"
+blkid_part1=9EBF-06B5
+
+chroot {
+  apt install --yes dosfstools	
+  mkdir -p /boot/efi
+  echo /dev/disk/by-uuid/"$blkid_part1" \
+    /boot/efi vfat \
+    defaults \
+    0 0 >> /etc/fstab
+
+  mount /boot/efi
+
+  DEBIAN_FRONTEND=noninteractive apt-get -yq install refind kexec-tools
+  apt install --yes dpkg-dev git systemd-sysv
+	
+  echo REMAKE_INITRD=yes > /etc/dkms/zfs.conf
+  sed -i 's,LOAD_KEXEC=false,LOAD_KEXEC=true,' /etc/default/kexec
+
+  apt install -y dracut-core ##core dracut components only for zbm initramfs 
+}
+
+## systemsetupFunc_part4 #Install zfsbootmenu
+chroot {
+  ##> ENCRYPTION
+  ##convert rpool to use keyfile
+  echo $zfspassword > /etc/zfs/$RPOOL.key ##This file will live inside your initramfs stored ON the ZFS boot environment.
+  chmod 600 /etc/zfs/$RPOOL.key
+  zfs change-key -o keylocation=file:///etc/zfs/$RPOOL.key -o keyformat=passphrase $RPOOL
+  
+  zfs set org.zfsbootmenu:commandline="spl_hostid=\$( hostid ) ro quiet" "$RPOOL"/ROOT
+  
+  ## make ZBM
+  apt install -y git make
+  cd /tmp
+  git clone 'https://github.com/zbm-dev/zfsbootmenu.git'
+  cd zfsbootmenu
+  make install
+
+  ## config ZBM
+  cat <<-EOF > /etc/zfsbootmenu/config.yaml
+    Global:
+      ManageImages: true
+      BootMountPoint: /boot/efi
+      DracutConfDir: /etc/zfsbootmenu/dracut.conf.d
+    Components:
+      ImageDir: /boot/efi/EFI/debian
+      Versions: false
+      Enabled: true
+      syslinux:
+        Config: /boot/syslinux/syslinux.cfg
+        Enabled: false
+    EFI:
+      ImageDir: /boot/efi/EFI/debian
+      Versions: false
+      Enabled: false
+    Kernel:
+      CommandLine: ro quiet loglevel=0
+  EOF
+
+  cat <<-EOF >> /etc/zfsbootmenu/dracut.conf.d/zfsbootmenu.conf
+    omit_dracutmodules+=" systemd systemd-initrd dracut-systemd "
+  EOF
+
+  apt install --yes libconfig-inifiles-perl libsort-versions-perl libboolean-perl fzf mbuffer
+  cpan 'YAML::PP'
+
+  update-initramfs -k all -c
+  generate-zbm
+  
+  cat <<-EOF > /boot/efi/EFI/debian/refind_linux.conf
+    "Boot default"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.timeout=15 ro quiet loglevel=0"
+    "Boot to menu"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.show ro quiet loglevel=0"
+  EOF
+}
+
+## systemsetupFunc_part5 #Config swap, tmpfs, rootpass
+chroot {
+  echo -e "root:$PASSWORD" | chpasswd
+  ## configure encrypted swap
+  
+  ## mount tmpfs to /tmp
+  cp /usr/share/systemd/tmp.mount /etc/systemd/system/
+  systemctl enable tmp.mount
+  
+  addgroup --system lpadmin ; addgroup --system lxd ; addgroup --system sambashare
+
+  # refresh initrd
+  ls /usr/lib/modules	
+  update-initramfs -c -k all
+}
+
+## systemsetupFunc_part6 #ZFS file system mount ordering.
+chroot {
+  mkdir -p /etc/zfs/zfs-list.cache
+  touch /etc/zfs/zfs-list.cache/$RPOOL
+  ln -s /usr/lib/zfs-linux/zed.d/history_event-zfs-list-cacher.sh /etc/zfs/zed.d
+  zed -F &
+  sleep 2
+  # see lines 663-669
+  pkill -9 "zed*"
+  ##Fix the paths to eliminate $mountpoint:
+  sed -Ei "s|$mountpoint/?|/|" /etc/zfs/zfs-list.cache/$RPOOL
+  cat /etc/zfs/zfs-list.cache/$RPOOL
+}
+
+## systemsetupFunc_part7 #Samba.
+chroot {
+  apt install -yq cifs-utils
+}
+## copy itself to a new /root filesystem
+
+## --------------------- postreboot flow ------------------------------
+
+## usersetup
+zfs create -o mountpoint=/home/"$user" "$RPOOL"/home/${user}
+
+adduser --disabled-password --gecos "" "$user"
+cp -a /etc/skel/. /home/"$user"
+chown -R "$user":"$user" /home/"$user"
+usermod -a -G adm,cdrom,dip,lpadmin,lxd,plugdev,sambashare,sudo "$user"
+echo -e "$user:$PASSWORD" | chpasswd
+
+## distroinstall #Upgrade the minimal system.
+apt update
+DEBIAN_FRONTEND=noninteractive apt dist-upgrade --yes
+apt install --yes ubuntu-server
+apt install --yes man-db tldr locate
+
+## logcompress #Disable log compression.
+for file in /etc/logrotate.d/* ; do
+  if grep -Eq "(^|[^#y])compress" "$file" ; then
+    sed -i -r "s/(^|[^#y])(compress)/\1#\2/" "$file"
+  fi
+done
+
+##> 950 interactive Configure keyboard and console
