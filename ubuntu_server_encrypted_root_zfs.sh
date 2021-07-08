@@ -48,7 +48,7 @@ locale="en_GB.UTF-8" #New install language setting.
 timezone="Europe/London" #New install timezone setting.
 
 refind_timeout="5" #how long should rEFInd wait until selecting default choice
-zbm_timeout="15" # how long should ZFS Boot Manager wait until selecting default choice
+zbm_timeout="10" # how long should ZFS Boot Manager wait until selecting default choice
 EFI_boot_size="512" #EFI boot loader partition size in mebibytes (MiB).
 create_swap="no" #create and use Swap partition or not
 swap_size="500" #Swap partition size in mebibytes (MiB).
@@ -589,7 +589,11 @@ systemsetupFunc_part4(){
 				
 				##Generate ZFSBootMenu
 				generate-zbm
-				
+			}
+			config_zbm
+			
+			config_refind(){
+			
 				##Create refind_linux.conf
 				##zfsbootmenu command-line parameters:
 				##https://github.com/zbm-dev/zfsbootmenu/blob/master/pod/zfsbootmenu.7.pod
@@ -599,9 +603,10 @@ systemsetupFunc_part4(){
 					"Boot default"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.timeout=$zbm_timeout ro quiet loglevel=0"
 					"Boot to menu"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.show ro quiet loglevel=0"
 				EOF
-				
+				mv 
 			}
-			config_zbm	
+			config_refind
+
 		}
 		zfsbootmenuinstall
 
