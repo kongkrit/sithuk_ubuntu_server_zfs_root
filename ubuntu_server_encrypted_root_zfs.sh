@@ -58,6 +58,7 @@ swap_size="500" #Swap partition size in mebibytes (MiB).
 RPOOL="rpool" #Root pool name.
 
 openssh="yes" #"yes" to install open-ssh server in new install.
+allow_root_ssh_with_password="yes" # allow root to ssh in by using password
 
 datapool="datapool" #Non-root drive data pool name.
 datapoolmount="/mnt/$datapool" #Non-root drive data pool mount point in new install.
@@ -733,6 +734,9 @@ systemsetupFunc_part7(){
 		if [ "$openssh" = "yes" ];
 		then
 			apt install -y openssh-server
+			if ["$allow_root_ssh_with_password" = "yes"]; then
+				sed -i.bak -E 's/(^#PermitRootLogin )(.*)$/\1\2\nPermitRootLogin yes/g' /etc/ssh/sshd_config
+			fi
 		fi
 
 		##6.2 exit chroot
