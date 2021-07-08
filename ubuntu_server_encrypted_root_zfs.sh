@@ -217,7 +217,9 @@ debootstrap_part1_Func(){
 	sgdisk --zap-all /dev/disk/by-id/"$DISKID_EFI"
 	sleep 2
 	sgdisk --zap-all /dev/disk/by-id/"$DISKID_ZFS1"
-	# sgdisk --zap-all /dev/disk/by-id/"$DISKID_ZFS2"
+	sleep 2
+	sgdisk --zap-all /dev/disk/by-id/"$DISKID_ZFS2"
+	sleep 2
 
 	##Partition disk
 	partitionsFunc(){
@@ -275,7 +277,7 @@ debootstrap_createzfspools_Func(){
 			-O xattr=sa \
 			$zpool_encrypt_options \
 			-O mountpoint=/ -R "$mountpoint" \
-			"$RPOOL" /dev/disk/by-id/"$DISKID_ZFS1"
+			"$RPOOL" mirror /dev/disk/by-id/"$DISKID_ZFS1" /dev/disk/by-id/"$DISKID_ZFS2"
 	}
 
 	echo -e "$zfspassword" | zpool_encrypted_Func
