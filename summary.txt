@@ -1,0 +1,55 @@
+sithuk script
+
+DONE: swap paritions 2 & 3
+DONE: enable/disable swap
+DONE: enable/disable encryption
+DONE: customize rEFInd, ZFSbootManager timeouts
+DONE: permit ssh root login
+DONE: verbose boot
+DONE: separate boot drive
+DONE: mirror vdev
+TODO: zpool_encrypted_Func() rpool no mount point test
+TODO: try removing "spl_hostid" from zfsbootmenuinstall()
+
+flow for initial
+
+133-137: mess with /etc/apt/sources.list: debootstrap_part1_Func() (DONE)
+164    : zap disk(s): debootstrap_part1_Func()
+168-191: disk partitions: partitionsFunc()
+211    : rpool encryption **ENCRYPTION** zpool_encrypted_Func() (DONE)
+212    : ??? mountpoint=none : zpool_encrypted_Func()
+238-258: create that many datasets?
+267-270: create more datasets
+401-403: cool way to get ethernet interface name
+405-412: netplan network config
+424-436: mess with /etc/apt/sources.list
+476    : create EFI partition(s) systemsetupFunc_part3()
+488-506: make EFI mounting points in fstab
+528-531: store encryption key in rpool  **ENCRYPTION** zfsbootmenuinstall() (DONE)
+533    : try removing "spl_hostid" from zfsbootmenuinstall()
+533    : verbose boot by removing "quiet"?: zfsbootmenuinstall() (DONE)
+536-543: install ZFS boot menu
+545-581: configure ZFS boot menu
+586    : change debian to ubuntu (DONE)
+586    : configure rEFInd and timeout (DONE)
+612-617: configure encrypted swap **ENCRYPTION** systemsetupFunc_part5() (DONE)
+619-621: create tmpfs for /tmp
+623-626: setup groups
+699    : install openssh-server inside chroot: allow root login with password systemsetupFunc_part7() (DONE)
+707-714: copy itself to new /root
+
+flow for postreboot
+
+950    : dpkg-reconfigure keyboard-configuration && setupcon #Configure keyboard and console.
+951    : pyznap install (761-807)
+782    : bug in pyznapinstall? change ["$RPOOL"/ROOT]  to  [$RPOOL/ROOT]
+
+flow for remoteaccess at 809-826
+
+flow for datapool
+
+857    : automount with zfs-mount-generator
+860    : encryption key
+872-875: pool encryption
+876    : pool vdev
+879-895: cleanup
