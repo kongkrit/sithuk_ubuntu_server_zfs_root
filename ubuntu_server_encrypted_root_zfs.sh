@@ -603,7 +603,8 @@ systemsetupFunc_part4(){
 					"Boot default"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.timeout=$zbm_timeout ro quiet loglevel=0"
 					"Boot to menu"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.show ro quiet loglevel=0"
 				EOF
-				mv 
+				## use correct "logo"
+				mv /boot/efi/EFI/debian /boot/efi/EFI/ubuntu
 			}
 			config_refind
 
