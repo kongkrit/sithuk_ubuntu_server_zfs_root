@@ -541,7 +541,7 @@ systemsetupFunc_part3(){
 	mkdosfs -F 32 -s 1 -n EFI /dev/disk/by-id/"$DISKID_EFI"-part1 
 	sleep 2
 	blkid_part1=""
-	blkid_part1="$(blkid -s UUID -o value /dev/disk/by-id/"${DISKID}"-part1)"
+	blkid_part1="$(blkid -s UUID -o value /dev/disk/by-id/"${DISKID_EFI}"-part1)"
 	echo "$blkid_part1"
 	
 	chroot "$mountpoint" /bin/bash -x <<-EOCHROOT
@@ -996,7 +996,8 @@ resettime(){
 
 initialinstall(){
 	disclaimer
-	getdiskID
+	# getdiskID
+	getDiskIDs
 	ipv6_apt_live_iso_fix #Only if ipv6_apt_fix_live_iso variable is set to "yes".
 	debootstrap_part1_Func
 	debootstrap_createzfspools_Func
