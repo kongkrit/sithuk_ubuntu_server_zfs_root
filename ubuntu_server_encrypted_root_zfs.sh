@@ -783,7 +783,7 @@ systemsetupFunc_part7(){
 	chroot "$mountpoint" /bin/bash -x <<-EOCHROOT
 		
 		##install samba mount access
-		apt install -yq cifs-utils
+		## apt install -yq cifs-utils
 		
 		##install openssh-server
 		if [ "$openssh" = "yes" ];
