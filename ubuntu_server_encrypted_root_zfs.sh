@@ -309,17 +309,17 @@ debootstrap_createzfspools_Func(){
 		##https://openzfs.github.io/openzfs-docs/Getting%20Started/Debian/Debian%20Buster%20Root%20on%20ZFS.html#step-3-system-installation
 		##"-o canmount=off" is for a system directory that should rollback with the rest of the system.
 		
-		zfs create	"$RPOOL"/srv 						##server webserver content
-		zfs create -o canmount=off	"$RPOOL"/usr
-		zfs create	"$RPOOL"/usr/local					##locally compiled software
+		## zfs create	"$RPOOL"/srv 						##server webserver content
+		## zfs create -o canmount=off	"$RPOOL"/usr
+		## zfs create	"$RPOOL"/usr/local					##locally compiled software
 		zfs create -o canmount=off "$RPOOL"/var 
 		zfs create -o canmount=off "$RPOOL"/var/lib
-		# zfs create 	"$RPOOL"/var/lib/AccountsService	##If this system will use GNOME
-		# zfs create	"$RPOOL"/var/games					##game files
+		## zfs create 	"$RPOOL"/var/lib/AccountsService	##If this system will use GNOME
+		## zfs create	"$RPOOL"/var/games					##game files
 		zfs create	"$RPOOL"/var/log 					##log files
-		zfs create	"$RPOOL"/var/mail 					##local mails
+		## zfs create	"$RPOOL"/var/mail 					##local mails
 		zfs create	"$RPOOL"/var/snap					##snaps handle revisions themselves
-		zfs create	"$RPOOL"/var/spool					##printing tasks
+		## zfs create	"$RPOOL"/var/spool					##printing tasks
 		zfs create	"$RPOOL"/var/www					##server webserver content
 		
 		
