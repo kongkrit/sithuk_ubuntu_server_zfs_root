@@ -8,8 +8,8 @@ DONE: permit ssh root login
 DONE: verbose boot
 DONE: separate boot drive
 DONE: mirror vdev
-TODO: zpool_encrypted_Func() rpool no mount point test
-TODO: try removing "spl_hostid" from zfsbootmenuinstall()
+SKIP: zpool_encrypted_Func() rpool no mount point test
+DONE: use $quiet_boot flag for reFind
 
 flow for initial
 
