@@ -662,15 +662,19 @@ systemsetupFunc_part4(){
 				##https://github.com/zbm-dev/zfsbootmenu/blob/master/pod/zfsbootmenu.7.pod
 				## adjust rEFInd timeout
 				sed -i.bak -E 's/(^timeout )[0-9]+/\1'"$refind_timeout"'/g' /boot/efi/EFI/refind/refind.conf
-				## don't boot refind quietly
-				cat <<-EOF > /boot/efi/EFI/debian/refind_linux.conf
-					"Boot default"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.timeout=$zbm_timeout ro loglevel=0"
-					"Boot to menu"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.show ro loglevel=0"
-				EOF				
-				## cat <<-EOF > /boot/efi/EFI/debian/refind_linux.conf
-				##	"Boot default"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.timeout=$zbm_timeout ro quiet loglevel=0"
-				##	"Boot to menu"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.show ro quiet loglevel=0"
-				## EOF
+				
+				if [ "$quiet_boot" = "yes" ]; then
+					cat <<-EOF > /boot/efi/EFI/debian/refind_linux.conf
+						"Boot default"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.timeout=$zbm_timeout ro quiet loglevel=0"
+						"Boot to menu"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.show ro quiet loglevel=0"
+					EOF
+				else
+					cat <<-EOF > /boot/efi/EFI/debian/refind_linux.conf
+						"Boot default"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.timeout=$zbm_timeout ro loglevel=0"
+						"Boot to menu"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.show ro loglevel=0"
+					EOF
+				fi
+
 				## use correct "logo"
 				mv /boot/efi/EFI/debian /boot/efi/EFI/ubuntu
 			}
