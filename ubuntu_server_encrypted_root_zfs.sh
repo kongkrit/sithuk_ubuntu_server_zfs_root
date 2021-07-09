@@ -62,7 +62,7 @@ allow_root_ssh_with_password="yes" # allow root to ssh in by using password
 
 datapool="datapool" #Non-root drive data pool name.
 datapoolmount="/mnt/$datapool" #Non-root drive data pool mount point in new install.
-zfs_compression="zstd" #lz4 is the zfs default; zstd may offer better compression at a cost of higher cpu usage. 
+zfs_compression="lz4" #lz4 is the zfs default; zstd may offer better compression at a cost of higher cpu usage. 
 mountpoint="/mnt/ub_server" #Mountpoint in live iso.
 remoteaccess="no" #"yes" to enable remoteaccess during first boot. Recommend leaving as "no" and run script with "remoteaccess" option.
 ethprefix="e" #First letter of ethernet interface. Used to identify ethernet interface to setup networking in new install.
@@ -314,8 +314,8 @@ debootstrap_createzfspools_Func(){
 		zfs create	"$RPOOL"/usr/local					##locally compiled software
 		zfs create -o canmount=off "$RPOOL"/var 
 		zfs create -o canmount=off "$RPOOL"/var/lib
-		zfs create 	"$RPOOL"/var/lib/AccountsService	##If this system will use GNOME
-		zfs create	"$RPOOL"/var/games					##game files
+		# zfs create 	"$RPOOL"/var/lib/AccountsService	##If this system will use GNOME
+		# zfs create	"$RPOOL"/var/games					##game files
 		zfs create	"$RPOOL"/var/log 					##log files
 		zfs create	"$RPOOL"/var/mail 					##local mails
 		zfs create	"$RPOOL"/var/snap					##snaps handle revisions themselves
@@ -662,10 +662,15 @@ systemsetupFunc_part4(){
 				##https://github.com/zbm-dev/zfsbootmenu/blob/master/pod/zfsbootmenu.7.pod
 				## adjust rEFInd timeout
 				sed -i.bak -E 's/(^timeout )[0-9]+/\1'"$refind_timeout"'/g' /boot/efi/EFI/refind/refind.conf
+				## don't boot refind quietly
 				cat <<-EOF > /boot/efi/EFI/debian/refind_linux.conf
-					"Boot default"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.timeout=$zbm_timeout ro quiet loglevel=0"
-					"Boot to menu"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.show ro quiet loglevel=0"
-				EOF
+					"Boot default"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.timeout=$zbm_timeout ro loglevel=0"
+					"Boot to menu"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.show ro loglevel=0"
+				EOF				
+				## cat <<-EOF > /boot/efi/EFI/debian/refind_linux.conf
+				##	"Boot default"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.timeout=$zbm_timeout ro quiet loglevel=0"
+				##	"Boot to menu"  "zfsbootmenu:POOL=$RPOOL zbm.import_policy=hostid zbm.set_hostid zbm.show ro quiet loglevel=0"
+				## EOF
 				## use correct "logo"
 				mv /boot/efi/EFI/debian /boot/efi/EFI/ubuntu
 			}
