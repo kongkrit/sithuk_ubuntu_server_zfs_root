@@ -55,6 +55,7 @@ EFI_boot_size="2" #EFI boot loader partition size in gibibytes (GiB).
 
 create_swap="no" #create and use Swap partition or not
 swap_size="500" #Swap partition size in mebibytes (MiB).
+zpool_ashift="13" # safer to use 13 for large drives, use 12 for 500GB SSSD or smaller
 RPOOL="rpool" #Root pool name.
 
 openssh="yes" #"yes" to install open-ssh server in new install.
@@ -266,7 +267,7 @@ debootstrap_createzfspools_Func(){
 		##2.8b create root pool encrypted
 		echo Password must be min 8 characters.
 		zpool create -f \
-			-o ashift=12 \
+			-o ashift="$zpool_ashift" \
 			-o autotrim=on \
 			-O acltype=posixacl \
 			-O canmount=off \
@@ -874,7 +875,7 @@ pyznapinstall(){
 		chown root:root -R /etc/pyznap/
 		##update config
 		cat >> /etc/pyznap/pyznap.conf <<-EOF
-			["$RPOOL"/ROOT]
+			[$RPOOL/ROOT]
 			frequent = 4                    
 			hourly = 24
 			daily = 7
