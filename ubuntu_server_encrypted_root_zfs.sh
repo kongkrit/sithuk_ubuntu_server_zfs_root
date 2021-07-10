@@ -48,8 +48,8 @@ zfspassword="testtest" #Password for root pool and data pool. Minimum 8 characte
 locale="en_GB.UTF-8" #New install language setting.
 timezone="Europe/London" #New install timezone setting.
 
-refind_timeout="3" #how long should rEFInd wait until selecting default choice
-zbm_timeout="5" # how long should ZFS Boot Manager wait until selecting default choice
+refind_timeout="2" #how long should rEFInd wait until selecting default choice
+zbm_timeout="2" # how long should ZFS Boot Manager wait until selecting default choice
 quiet_boot="no" # should boot process be quiet or not?
 EFI_boot_size="2" #EFI boot loader partition size in gibibytes (GiB).
 
