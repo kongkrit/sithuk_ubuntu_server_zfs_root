@@ -1,0 +1,6 @@
+## add this after parameters section to customize values
+
+user="kongadmin" #Username for new install.
+hostname="server" #Name to identify the new install on the network. An underscore is DNS non-compliant.
+locale="en_US.UTF-8" #New install language setting.
+timezone="Asia/Bangkok" #New install timezone setting.
