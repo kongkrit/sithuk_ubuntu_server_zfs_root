@@ -77,6 +77,13 @@ if [ "$(id -u)" -ne 0 ]; then
    exit 1
 fi
 
+if test -d /sys/firmware/efi; then
+   echo "found efi boot environment"
+else
+   echo "booted up in bios, not efi. script requires EFI booting."
+   exit 1
+fi
+
 ##Functions
 logFunc(){
 	# Log everything we do
