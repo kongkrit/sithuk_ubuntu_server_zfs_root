@@ -281,7 +281,7 @@ debootstrap_createzfspools_Func(){
 			-O compression="$zfs_compression" \
 			-O dnodesize=auto \
 			-O normalization=formD \
-			-O relatime=on \
+			-O atime=off \
 			-O xattr=sa \
 			$zpool_encrypt_options \
 			-O mountpoint=/ -R "$mountpoint" \
@@ -969,7 +969,7 @@ createdatapool(){
 		-O acltype=posixacl \
 		-O compression="$zfs_compression" \
 		-O normalization=formD \
-		-O relatime=on \
+		-O atime=off \
 		-O dnodesize=auto \
 		-O xattr=sa \
 		-O encryption=aes-256-gcm \
