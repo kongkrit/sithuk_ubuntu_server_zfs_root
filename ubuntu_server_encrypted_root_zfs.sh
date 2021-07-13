@@ -343,6 +343,7 @@ debootstrap_createzfspools_Func(){
 		zfs create -o com.sun:auto-snapshot=false "$RPOOL"/var/tmp
 		chmod 1777 "$mountpoint"/var/tmp
 		zfs create -o com.sun:auto-snapshot=false "$RPOOL"/var/lib/docker ##Docker manages its own datasets & snapshots
+		zfs create "$RPOOL"/var/lib/libvirt
 
 	
 		##Mount a tempfs at /run
