@@ -705,7 +705,7 @@ systemsetupFunc_part4(){
 systemsetupFunc_part5(){
 	chroot "$mountpoint" /bin/bash -x <<-EOCHROOT
 		##4.11 set root password
-		echo -e "root:$PASSWORD" | chpasswd
+		printf $PASSWORD"\n"$PASSWORD | passwd
 
 
 		##4.12 configure swap
@@ -828,7 +828,7 @@ usersetup(){
 	cp -a /etc/skel/. /home/"$user"
 	chown -R "$user":"$user" /home/"$user"
 	usermod -a -G adm,cdrom,dip,lpadmin,lxd,plugdev,sambashare,sudo "$user"
-	echo -e "$user:$PASSWORD" | chpasswd
+	printf $PASSWORD"\n"$PASSWORD | passwd $user
 }
 
 distroinstall(){
