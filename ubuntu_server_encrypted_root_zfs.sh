@@ -882,8 +882,9 @@ pyznapinstall(){
 		/root/pyznap/venv/bin/pyznap setup ##config file created /etc/pyznap/pyznap.conf
 		chown root:root -R /etc/pyznap/
 		##update config
+		real_root_pool=$(zfs list | sed -n -E 's|^('$RPOOL'/ROOT/\S+).*$|\1|p')
 		cat >> /etc/pyznap/pyznap.conf <<-EOF
-			[$RPOOL/ROOT]
+			[$real_root_pool]
 			frequent = 4                    
 			hourly = 24
 			daily = 7
