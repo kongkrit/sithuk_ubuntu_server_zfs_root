@@ -330,7 +330,7 @@ debootstrap_createzfspools_Func(){
 		## zfs create	"$RPOOL"/var/spool					##printing tasks
 		zfs create	"$RPOOL"/var/www					##server webserver content
 		zfs create "$RPOOL"/var/lib/libvirt
-		zfs create "$RPOOL"/var/lib/lib/containers  # for podman
+		zfs create "$RPOOL"/var/lib/containers  # for podman
 		
 		##USERDATA datasets
 		zfs create "$RPOOL"/home
