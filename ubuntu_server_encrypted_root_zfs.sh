@@ -330,7 +330,6 @@ debootstrap_createzfspools_Func(){
 		## zfs create	"$RPOOL"/var/spool					##printing tasks
 		zfs create	"$RPOOL"/var/www					##server webserver content
 		zfs create "$RPOOL"/var/lib/libvirt
-		zfs create "$RPOOL"/var/lib/containers  # for podman
 		
 		##USERDATA datasets
 		zfs create "$RPOOL"/home
@@ -343,7 +342,9 @@ debootstrap_createzfspools_Func(){
 		zfs create -o com.sun:auto-snapshot=false "$RPOOL"/var/cache
 		zfs create -o com.sun:auto-snapshot=false "$RPOOL"/var/tmp
 		chmod 1777 "$mountpoint"/var/tmp
-		zfs create -o com.sun:auto-snapshot=false "$RPOOL"/var/lib/docker ##Docker manages its own datasets & snapshots
+		
+		zfs create -o com.sun:auto-snapshot=false "$RPOOL"/var/lib/docker ## Docker manages its own datasets & snapshots
+		zfs create -o com.sun:auto-snapshot=false "$RPOOL"/var/lib/containers  ## for podman
 
 		##Mount a tempfs at /run
 		mkdir "$mountpoint"/run
